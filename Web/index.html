@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>LAS Point Cloud Viewer with Profile</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { width: 100vw; height: 100vh; display: block; }
+    #profile {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      width: 600px;
+      height: 200px;
+      background: rgba(255, 255, 255, 0.9);
+      z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+  <div id="profile"></div>
+
+  <!-- Only Three.js and Plotly are loaded from CDN, loaders.gl is handled by your bundler -->
+  <script src="https://unpkg.com/three@0.132.2/build/three.min.js"></script>
+  <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+
+  <!-- Your bundled JS file (output by Vite/Webpack/Parcel) -->
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

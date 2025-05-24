@@ -39,3 +39,9 @@ logs/
 # Ignore LAS/LAZ test data (optional, remove if you want to keep them in git)
 *.las
 *.laz
+
+# Folder for testing
+TestFolder/*
+pointclouds/*
+data/*
+Web/*

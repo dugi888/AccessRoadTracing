@@ -1,9 +1,0 @@
-{
-  "dependencies": {
-    "@loaders.gl/core": "^4.3.3",
-    "@loaders.gl/las": "^4.3.3",
-    "plotly.js": "^3.0.1",
-    "plotly.js-dist-min": "^3.0.1",
-    "three": "^0.176.0"
-  }
-}

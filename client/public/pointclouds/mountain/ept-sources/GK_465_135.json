@@ -1,0 +1,306 @@
+{
+  "bounds": [
+    465000.0,
+    135000.0,
+    1680.43,
+    465999.99,
+    135999.99,
+    2473.96
+  ],
+  "metadata": {
+    "readers.las": {
+      "comp_spatialreference": "",
+      "compressed": false,
+      "copc": false,
+      "count": 19276539,
+      "creation_doy": 12,
+      "creation_year": 2016,
+      "dataformat_id": 1,
+      "dataoffset": 229,
+      "filesource_id": 0,
+      "global_encoding": 1,
+      "global_encoding_base64": "AQA=",
+      "header_size": 227,
+      "major_version": 1,
+      "maxx": 465999.99,
+      "maxy": 135999.99,
+      "maxz": 2473.96,
+      "minor_version": 2,
+      "minx": 465000,
+      "miny": 135000,
+      "minz": 1680.43,
+      "offset_x": 0,
+      "offset_y": 0,
+      "offset_z": 0,
+      "point_length": 28,
+      "project_id": "00000000-0000-0000-0000-000000000000",
+      "scale_x": 0.01,
+      "scale_y": 0.01,
+      "scale_z": 0.01,
+      "software_id": "TerraScan",
+      "spatialreference": "",
+      "srs": {
+        "compoundwkt": "",
+        "horizontal": "",
+        "isgeocentric": false,
+        "isgeographic": false,
+        "json": {},
+        "prettycompoundwkt": "",
+        "prettywkt": "",
+        "proj4": "",
+        "units": {
+          "horizontal": "unknown",
+          "vertical": ""
+        },
+        "vertical": "",
+        "wkt": ""
+      },
+      "system_id": ""
+    }
+  },
+  "path": "GK_465_135.las",
+  "pipeline": [
+    {
+      "filename": "GK_465_135.las"
+    }
+  ],
+  "points": 19276539,
+  "schema": [
+    {
+      "count": 19276539,
+      "maximum": 465999.99,
+      "mean": 465487.6411571786,
+      "minimum": 465000,
+      "name": "X",
+      "scale": 0.01,
+      "size": 4,
+      "stddev": 283.1402350739393,
+      "type": "signed",
+      "variance": 80168.39271772561
+    },
+    {
+      "count": 19276539,
+      "maximum": 135999.99,
+      "mean": 135469.7610038246,
+      "minimum": 135000,
+      "name": "Y",
+      "scale": 0.01,
+      "size": 4,
+      "stddev": 274.67829900519376,
+      "type": "signed",
+      "variance": 75448.16794438663
+    },
+    {
+      "count": 19276539,
+      "maximum": 2473.96,
+      "mean": 2220.9913922351543,
+      "minimum": 1680.43,
+      "name": "Z",
+      "scale": 0.01,
+      "size": 4,
+      "stddev": 142.955510962983,
+      "type": "signed",
+      "variance": 20436.27811468755
+    },
+    {
+      "count": 19276539,
+      "maximum": 2450,
+      "mean": 634.5038464634794,
+      "minimum": 0,
+      "name": "Intensity",
+      "size": 2,
+      "stddev": 235.74140541055223,
+      "type": "unsigned",
+      "variance": 55574.01022494234
+    },
+    {
+      "count": 19276539,
+      "maximum": 7,
+      "mean": 1.0782356210312685,
+      "minimum": 1,
+      "name": "ReturnNumber",
+      "size": 1,
+      "stddev": 0.31781325419056633,
+      "type": "unsigned",
+      "variance": 0.10100526453919753
+    },
+    {
+      "count": 19276539,
+      "maximum": 7,
+      "mean": 1.1565781595959166,
+      "minimum": 1,
+      "name": "NumberOfReturns",
+      "size": 1,
+      "stddev": 0.4678510425181649,
+      "type": "unsigned",
+      "variance": 0.21888459798533372
+    },
+    {
+      "count": 19276539,
+      "maximum": 1,
+      "mean": 1,
+      "minimum": 1,
+      "name": "ScanDirectionFlag",
+      "size": 1,
+      "stddev": 0,
+      "type": "unsigned",
+      "variance": 0
+    },
+    {
+      "count": 19276539,
+      "maximum": 1,
+      "mean": 0.00022218718827069923,
+      "minimum": 0,
+      "name": "EdgeOfFlightLine",
+      "size": 1,
+      "stddev": 0.014904288682256807,
+      "type": "unsigned",
+      "variance": 0.00022213782112404833
+    },
+    {
+      "count": 19276539,
+      "counts": [
+        {
+          "count": 3255748,
+          "value": 0
+        },
+        {
+          "count": 19707,
+          "value": 1
+        },
+        {
+          "count": 12377760,
+          "value": 2
+        },
+        {
+          "count": 1954409,
+          "value": 3
+        },
+        {
+          "count": 692409,
+          "value": 4
+        },
+        {
+          "count": 747827,
+          "value": 5
+        },
+        {
+          "count": 201057,
+          "value": 6
+        },
+        {
+          "count": 27622,
+          "value": 7
+        }
+      ],
+      "maximum": 7,
+      "mean": 1.999680596190078,
+      "minimum": 0,
+      "name": "Classification",
+      "size": 1,
+      "stddev": 1.2138923313662013,
+      "type": "unsigned",
+      "variance": 1.4735345921496716
+    },
+    {
+      "count": 19276539,
+      "maximum": 0,
+      "mean": 0,
+      "minimum": 0,
+      "name": "Synthetic",
+      "size": 1,
+      "stddev": 0,
+      "type": "unsigned",
+      "variance": 0
+    },
+    {
+      "count": 19276539,
+      "maximum": 0,
+      "mean": 0,
+      "minimum": 0,
+      "name": "KeyPoint",
+      "size": 1,
+      "stddev": 0,
+      "type": "unsigned",
+      "variance": 0
+    },
+    {
+      "count": 19276539,
+      "maximum": 0,
+      "mean": 0,
+      "minimum": 0,
+      "name": "Withheld",
+      "size": 1,
+      "stddev": 0,
+      "type": "unsigned",
+      "variance": 0
+    },
+    {
+      "count": 19276539,
+      "maximum": 0,
+      "mean": 0,
+      "minimum": 0,
+      "name": "Overlap",
+      "size": 1,
+      "stddev": 0,
+      "type": "unsigned",
+      "variance": 0
+    },
+    {
+      "count": 19276539,
+      "maximum": 30,
+      "mean": 4.575862970007537,
+      "minimum": -35,
+      "name": "ScanAngleRank",
+      "size": 4,
+      "stddev": 13.006687323082177,
+      "type": "float",
+      "variance": 169.1739151204266
+    },
+    {
+      "count": 19276539,
+      "maximum": 0,
+      "mean": 0,
+      "minimum": 0,
+      "name": "UserData",
+      "size": 1,
+      "stddev": 0,
+      "type": "unsigned",
+      "variance": 0
+    },
+    {
+      "count": 19276539,
+      "maximum": 1496,
+      "mean": 1485.099772578357,
+      "minimum": 1479,
+      "name": "PointSourceId",
+      "size": 2,
+      "stddev": 6.834187257461469,
+      "type": "unsigned",
+      "variance": 46.706115470048715
+    },
+    {
+      "count": 19276539,
+      "maximum": 93334048.38864464,
+      "mean": 93327088.00463533,
+      "minimum": 93323862.49294187,
+      "name": "GpsTime",
+      "size": 8,
+      "stddev": 3987.3066801765112,
+      "type": "float",
+      "variance": 15898614.561780233
+    },
+    {
+      "count": 19276539,
+      "maximum": 0,
+      "mean": 0,
+      "minimum": 0,
+      "name": "OriginId",
+      "size": 4,
+      "stddev": 0,
+      "type": "unsigned",
+      "variance": 0
+    }
+  ],
+  "srs": {}
+}

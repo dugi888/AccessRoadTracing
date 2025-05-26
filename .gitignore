@@ -45,3 +45,6 @@ TestFolder/*
 pointclouds/*
 data/*
 Web/*
+
+# Python cache
+__pycache__/

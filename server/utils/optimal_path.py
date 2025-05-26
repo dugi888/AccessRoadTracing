@@ -164,3 +164,115 @@ def find_optimal_path(
         z = elevations[iy, ix]
         path_points.append([float(x), float(y), float(z)])
     return path_points
+
+def greedy_best_first(
+    elevations,
+    start_idx,
+    goal_idx,
+    max_slope=None,
+    forbidden_mask=None,
+    min_elev=None,
+    max_elev=None
+):
+    from queue import PriorityQueue
+
+    neighbors = [(-1,0),(1,0),(0,-1),(0,1), (-1,-1), (-1,1), (1,-1), (1,1)]
+    grid_shape = elevations.shape
+    visited = set()
+    came_from = {}
+    pq = PriorityQueue()
+    pq.put((heuristic(start_idx, goal_idx), start_idx))
+
+    while not pq.empty():
+        _, current = pq.get()
+        if current == goal_idx:
+            path = []
+            while current in came_from:
+                path.append(current)
+                current = came_from[current]
+            path.append(start_idx)
+            path.reverse()
+            return path
+
+        if current in visited:
+            continue
+        visited.add(current)
+
+        for dx, dy in neighbors:
+            neighbor = (current[0] + dx, current[1] + dy)
+            if 0 <= neighbor[0] < grid_shape[0] and 0 <= neighbor[1] < grid_shape[1]:
+                # Constraints
+                if max_slope is not None:
+                    dz = elevations[neighbor] - elevations[current]
+                    dx_dist = heuristic(current, neighbor)
+                    slope = abs(dz / dx_dist) if dx_dist != 0 else 0
+                    if slope > max_slope:
+                        continue
+                if forbidden_mask is not None and forbidden_mask[neighbor]:
+                    continue
+                if min_elev is not None and elevations[neighbor] < min_elev:
+                    continue
+                if max_elev is not None and elevations[neighbor] > max_elev:
+                    continue
+
+                if neighbor not in visited:
+                    came_from[neighbor] = current
+                    pq.put((heuristic(neighbor, goal_idx), neighbor))
+    return []
+
+import heapq
+
+def dijkstra(
+    elevations,
+    start_idx,
+    goal_idx,
+    max_slope=None,
+    forbidden_mask=None,
+    min_elev=None,
+    max_elev=None
+):
+    neighbors = [(-1,0),(1,0),(0,-1),(0,1), (-1,-1), (-1,1), (1,-1), (1,1)]
+    grid_shape = elevations.shape
+    visited = set()
+    came_from = {}
+    gscore = {start_idx: 0}
+    heap = [(0, start_idx)]
+
+    while heap:
+        cost, current = heapq.heappop(heap)
+        if current == goal_idx:
+            path = []
+            while current in came_from:
+                path.append(current)
+                current = came_from[current]
+            path.append(start_idx)
+            path.reverse()
+            return path
+
+        if current in visited:
+            continue
+        visited.add(current)
+
+        for dx, dy in neighbors:
+            neighbor = (current[0] + dx, current[1] + dy)
+            if 0 <= neighbor[0] < grid_shape[0] and 0 <= neighbor[1] < grid_shape[1]:
+                # Constraints (same as in A*)
+                if max_slope is not None:
+                    dz = elevations[neighbor] - elevations[current]
+                    dx_dist = np.linalg.norm(np.array(current) - np.array(neighbor))
+                    slope = abs(dz / dx_dist) if dx_dist != 0 else 0
+                    if slope > max_slope:
+                        continue
+                if forbidden_mask is not None and forbidden_mask[neighbor]:
+                    continue
+                if min_elev is not None and elevations[neighbor] < min_elev:
+                    continue
+                if max_elev is not None and elevations[neighbor] > max_elev:
+                    continue
+
+                tentative_g_score = gscore[current] + np.linalg.norm(np.array(current) - np.array(neighbor)) + abs(elevations[neighbor] - elevations[current])
+                if tentative_g_score < gscore.get(neighbor, float('inf')):
+                    came_from[neighbor] = current
+                    gscore[neighbor] = tentative_g_score
+                    heapq.heappush(heap, (tentative_g_score, neighbor))
+    return []

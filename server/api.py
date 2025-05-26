@@ -1,11 +1,10 @@
-import os
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 from fastapi.middleware.cors import CORSMiddleware
 from models import PointRequest, ProfileResponse 
 from utils.terrain_profile import get_terrain_profile
-from utils.optimal_path import find_optimal_path
+from utils.optimal_path import find_optimal_path, a_star, dijkstra, greedy_best_first, get_elevation_grid, heuristic
 
 app = FastAPI()
 
@@ -27,23 +26,72 @@ async def create_profile(request: PointRequest):
         raise HTTPException(status_code=500, detail=str(e))
     return profile
 
-
 @app.post("/optimal-path")
-async def optimal_path(request: PointRequest):
+async def optimal_path(
+    request: PointRequest,
+    algorithm: str = Query("astar", enum=["astar", "dijkstra", "greedy"]),
+    max_slope: float = Query(100.0),
+    min_elev: Optional[float] = Query(None),
+    max_elev: Optional[float] = Query(None),
+    grid_size: int = Query(100)
+):
     if len(request.point1) != 3 or len(request.point2) != 3:
         raise HTTPException(status_code=400, detail="Points must be 3D coordinates")
     try:
-        path_points = find_optimal_path(
-                            request.point1, request.point2,
-                            max_slope=100, # TODO: Get this from the frontend
-                            min_elev=0,
-                            max_elev=25000
-                    )   
+        # Prepare grid and indices
+        min_x = min(request.point1[0], request.point2[0])
+        max_x = max(request.point1[0], request.point2[0])
+        min_y = min(request.point1[1], request.point2[1])
+        max_y = max(request.point1[1], request.point2[1])
+        buffer = 10
+        bounds = (min_x - buffer, max_x + buffer, min_y - buffer, max_y + buffer)
+        xx, yy, elevations = get_elevation_grid(bounds, grid_size=grid_size)
+        def closest_idx(x, y):
+            ix = (abs(xx[0] - x)).argmin()
+            iy = (abs(yy[:,0] - y)).argmin()
+            return (iy, ix)
+        start_idx = closest_idx(request.point1[0], request.point1[1])
+        goal_idx = closest_idx(request.point2[0], request.point2[1])
+        forbidden_mask = None  # You can add logic to build this mask if needed
+
+        # Select algorithm
+        if algorithm == "astar":
+            path_indices = a_star(
+                elevations, start_idx, goal_idx,
+                max_slope=max_slope,
+                forbidden_mask=forbidden_mask,
+                min_elev=min_elev,
+                max_elev=max_elev
+            )
+        elif algorithm == "dijkstra":
+            path_indices = dijkstra(
+                elevations, start_idx, goal_idx,
+                max_slope=max_slope,
+                forbidden_mask=forbidden_mask,
+                min_elev=min_elev,
+                max_elev=max_elev
+            )
+        elif algorithm == "greedy":
+            path_indices = greedy_best_first(
+                elevations, start_idx, goal_idx,
+                max_slope=max_slope,
+                forbidden_mask=forbidden_mask,
+                min_elev=min_elev,
+                max_elev=max_elev
+            )
+        else:
+            raise HTTPException(status_code=400, detail="Unknown algorithm")
+
+        # Convert indices to coordinates
+        path_points = []
+        for iy, ix in path_indices:
+            x = xx[iy, ix]
+            y = yy[iy, ix]
+            z = elevations[iy, ix]
+            path_points.append([float(x), float(y), float(z)])
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     return {"path": path_points}
-
-
 
 if __name__ == "__main__":
     import uvicorn

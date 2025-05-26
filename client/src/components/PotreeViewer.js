@@ -157,36 +157,45 @@ useEffect(() => {
 
 
   const sendOptimalPathRequest = async () => {
-    if (
-      selectedPoints.length >= 2 &&
-      selectedPoints[0].points[0]?.position &&
-      selectedPoints[1].points[0]?.position
-    ) {
-      const p1 = selectedPoints[0].points[0].position;
-      const p2 = selectedPoints[1].points[0].position;
-      const point1 = [p1.x, p1.y, p1.z];
-      const point2 = [p2.x, p2.y, p2.z];
+  if (
+    selectedPoints.length >= 2 &&
+    selectedPoints[0].points[0]?.position &&
+    selectedPoints[1].points[0]?.position
+  ) {
+    const p1 = selectedPoints[0].points[0].position;
+    const p2 = selectedPoints[1].points[0].position;
+    const point1 = [p1.x, p1.y, p1.z];
+    const point2 = [p2.x, p2.y, p2.z];
 
-      try {
-        const response = await fetch('http://localhost:8000/optimal-path', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ point1, point2 }),
-        });
-        if (!response.ok) {
-          throw new Error(await response.text());
-        }
-        const data = await response.json();
-        setOptimalPathResult(data);
-        console.log('Optimal path result:', data);
-      } catch (err) {
-        setOptimalPathResult(null);
-        console.error('API error:', err);
+    // Example: set algorithm and constraints
+    const params = new URLSearchParams({ // TODO: make these configurable
+      algorithm: "astar", // or "dijkstra", "greedy"
+      max_slope: "100",
+      min_elev: "0",
+      max_elev: "20000",
+      grid_size: "100"
+    });
+
+    try {
+      const response = await fetch(`http://localhost:8000/optimal-path?${params.toString()}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ point1, point2 }),
+      });
+      if (!response.ok) {
+        throw new Error(await response.text());
       }
-    } else {
-      alert('Please select two points first.');
+      const data = await response.json();
+      setOptimalPathResult(data);
+      console.log('Optimal path result:', data);
+    } catch (err) {
+      setOptimalPathResult(null);
+      console.error('API error:', err);
     }
-  };
+  } else {
+    alert('Please select two points first.');
+  }
+};
 
   return (
     <div

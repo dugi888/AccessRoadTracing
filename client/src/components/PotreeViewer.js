@@ -1,6 +1,7 @@
 import {  useEffect, useRef, useState } from 'react';
 import ProfileChart from './ProfileChart';
 import OptimalPathChart from './OptimalPathChart';
+import PathControls from './PathControls';
 import * as THREE from 'three';
 
 
@@ -10,6 +11,18 @@ const PotreeViewer = () => {
   const [selectedPoints, setSelectedPoints] = useState([]);
   const [profileResult, setProfileResult] = useState(null);
   const [optimalPathResult, setOptimalPathResult] = useState(null);
+
+  const [params, setParams] = useState({
+  algorithm: "astar",
+  max_slope: "100",
+  min_elev: "0",
+  max_elev: "20000",
+  grid_size: "100",
+  max_angle: "180",
+  max_step: "10000",
+  buffer: "10",
+});
+
 
 useEffect(() => {
   if (
@@ -62,7 +75,7 @@ useEffect(() => {
 
       viewer.setEDLEnabled(true);
       viewer.setFOV(60);
-      viewer.setPointBudget(1_000_000);
+      viewer.setPointBudget(20_000_000);
       viewer.loadSettingsFromURL();
       viewer.loadGUI(() => {
         viewer.setLanguage('en');
@@ -74,15 +87,10 @@ useEffect(() => {
         const originalAddMeasurement = viewer.scene.addMeasurement.bind(viewer.scene);
         viewer.scene.addMeasurement = function(measurement) {
           originalAddMeasurement(measurement);
-          console.log("Measurement added:", measurement);
           if (measurement.name === "Point") {
             const pointMeasurements = viewer.scene.measurements.filter(m => m.name === "Point");
             
             if (pointMeasurements.length >= 2) {
-              console.log("First two Point measurements:", 
-                pointMeasurements[0].points[0].position, 
-                pointMeasurements[1].points[0].position
-              );
               setSelectedPoints(
                 pointMeasurements
               );
@@ -94,32 +102,12 @@ useEffect(() => {
       window.Potree.loadPointCloud('/pointclouds/mountain/ept.json', 'Terrain', e => {
         const pointcloud = e.pointcloud;
         viewer.scene.addPointCloud(pointcloud);
-
-        pointcloud.material.pointColorType = 
-          window.Potree.PointColorType?.ELEVATION || 1;
-
+        viewer.setBackground("white"); // Potree's built-in method
         viewer.fitToScreen();
       });
     }
   }, []);
 
-  useEffect(() => {
-    if(selectedPoints.length>0 && isVector3NotNull(selectedPoints[1].points[0].position)){
-      console.log("true");
-    }
-    if(selectedPoints){ // CHECK IF SELECTED POINT IS VALID
-      console.log("Selected Points:", selectedPoints);
-    }
-  }, [selectedPoints]);
-    function isVector3NotNull(vec) {
-      return (
-        vec &&
-        typeof vec.x === 'number' &&
-        typeof vec.y === 'number' &&
-        typeof vec.z === 'number' &&
-        vec.x !== 0 && vec.y !== 0 && vec.z !== 0
-      );
-    }
 
     // Function to send API request
   const sendProfileRequest = async () => {
@@ -145,10 +133,10 @@ useEffect(() => {
         }
         const data = await response.json();
         setProfileResult(data);
-        console.log('Profile result:', data);
       } catch (err) {
         setProfileResult(null);
         console.error('API error:', err);
+        alert('Error fetching profile data. Please try again.');
       }
     } else {
       alert('Please select two points first.');
@@ -156,7 +144,7 @@ useEffect(() => {
   };
 
 
-  const sendOptimalPathRequest = async () => {
+const sendOptimalPathRequest = async (activeParams) => {
   if (
     selectedPoints.length >= 2 &&
     selectedPoints[0].points[0]?.position &&
@@ -167,17 +155,10 @@ useEffect(() => {
     const point1 = [p1.x, p1.y, p1.z];
     const point2 = [p2.x, p2.y, p2.z];
 
-    // Example: set algorithm and constraints
-    const params = new URLSearchParams({ // TODO: make these configurable
-      algorithm: "astar", // or "dijkstra", "greedy"
-      max_slope: "100",
-      min_elev: "0",
-      max_elev: "20000",
-      grid_size: "100"
-    });
+    const urlParams = new URLSearchParams(activeParams);
 
     try {
-      const response = await fetch(`http://localhost:8000/optimal-path?${params.toString()}`, {
+      const response = await fetch(`http://localhost:8000/optimal-path?${urlParams.toString()}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ point1, point2 }),
@@ -186,8 +167,11 @@ useEffect(() => {
         throw new Error(await response.text());
       }
       const data = await response.json();
+      if (!data.path || !Array.isArray(data.path) || data.path.length === 0) {
+        alert('No valid path found. Please adjust your parameters.');
+        throw new Error('Invalid path data received from server');
+      }
       setOptimalPathResult(data);
-      console.log('Optimal path result:', data);
     } catch (err) {
       setOptimalPathResult(null);
       console.error('API error:', err);
@@ -216,30 +200,14 @@ useEffect(() => {
           height: '100%',
         }}
       />
-      <button
-        style={{
-          position: 'absolute',
-          top: 20,
-          left: 360,
-          zIndex: 2000,
-          padding: '10px 20px',
-        }}
-        onClick={sendProfileRequest}
-      >
-        Get Terrain Profile
-      </button>
-      <button
-        style={{
-          position: 'absolute',
-          top: 20,
-          left: 540,
-          zIndex: 2000,
-          padding: '10px 20px',
-        }}
-        onClick={sendOptimalPathRequest}
-      >
-        Get Optimal Path
-      </button>
+      
+      <PathControls
+        onProfileClick={sendProfileRequest}
+        onOptimalPathClick={sendOptimalPathRequest}
+        params={params}
+        setParams={setParams}
+        disabled={selectedPoints.length < 2}
+      />
       <ProfileChart profile={profileResult} />
       <OptimalPathChart path={optimalPathResult?.path} />
     </div>

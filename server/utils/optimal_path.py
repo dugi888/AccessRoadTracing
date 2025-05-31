@@ -2,15 +2,14 @@ import os
 import json
 import pdal
 import numpy as np
-from typing import List, Tuple
-from models import ProfileResponse
+from typing import Tuple
 
 EPT_PATH = os.path.join("../client/public/pointclouds/mountain/ept.json")
 
 def get_elevation_grid(bounds: Tuple[float, float, float, float], grid_size: int = 100):
     """
     Reads a grid of elevation points from the EPT point cloud within the given bounds.
-    Returns a 2D numpy array of elevations and the x/y coordinates.
+    Returns a 2D numpy array of elevations and the x/y coordinates, using only ground points (classification 2).
     """
     min_x, max_x, min_y, max_y = bounds
     x_coords = np.linspace(min_x, max_x, grid_size)
@@ -34,14 +33,27 @@ def get_elevation_grid(bounds: Tuple[float, float, float, float], grid_size: int
         raise RuntimeError("No points found in the specified bounds.")
 
     cloud = pipeline.arrays[0]
-    cloud_points = np.column_stack([cloud['X'], cloud['Y'], cloud['Z']])
 
-    # Interpolate elevations onto the grid
+    # Filter only ground points (classification == 2)
+    ground_mask = (cloud['Classification'] == 2)
+    ground_points = np.column_stack([cloud['X'][ground_mask], cloud['Y'][ground_mask], cloud['Z'][ground_mask]])
+
+    if ground_points.shape[0] == 0:
+        raise RuntimeError("No ground points found in the specified bounds.")
+
+    # Interpolate elevations onto the grid using only ground points
     from scipy.interpolate import griddata
     elevations = griddata(
-        cloud_points[:, :2], cloud_points[:, 2], (xx, yy), method='nearest'
+        ground_points[:, :2], ground_points[:, 2], (xx, yy), method='nearest'
     )
     return xx, yy, elevations
+
+def angle_between(v1, v2):
+    v1 = np.array(v1)
+    v2 = np.array(v2)
+    cos_theta = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
+    cos_theta = np.clip(cos_theta, -1.0, 1.0)
+    return np.degrees(np.arccos(cos_theta))
 
 def heuristic(a, b):
     return np.linalg.norm(np.array(a) - np.array(b))
@@ -53,7 +65,10 @@ def a_star(
     max_slope=None,
     forbidden_mask=None,
     min_elev=None,
-    max_elev=None
+    max_elev=None,
+    max_step = None,
+    max_angle = None,
+
 ):
     """
     A* pathfinding on a 2D grid of elevations with constraints.
@@ -86,13 +101,6 @@ def a_star(
         for dx, dy in neighbors:
             neighbor = (current[0] + dx, current[1] + dy)
             if 0 <= neighbor[0] < grid_shape[0] and 0 <= neighbor[1] < grid_shape[1]:
-                # --- Slope constraint ---
-                if max_slope is not None:
-                    dz = elevations[neighbor] - elevations[current]
-                    dx_dist = heuristic(current, neighbor)
-                    slope = abs(dz / dx_dist) if dx_dist != 0 else 0
-                    if slope > max_slope:
-                        continue
                 # --- Forbidden zone constraint ---
                 if forbidden_mask is not None and forbidden_mask[neighbor]:
                     continue
@@ -101,6 +109,27 @@ def a_star(
                     continue
                 if max_elev is not None and elevations[neighbor] > max_elev:
                     continue
+                # --- Slope constraint ---
+                if max_slope is not None:
+                    dz = elevations[neighbor] - elevations[current]
+                    dx_dist = heuristic(current, neighbor)
+                    slope = abs(dz / dx_dist) if dx_dist != 0 else 0
+                    if slope > max_slope:
+                        continue
+                
+                # --- Step constraint ---
+                dx_dist = heuristic(current, neighbor)
+                if max_step is not None and dx_dist > max_step:
+                    continue
+
+                # --- Angle constraint ---
+                prev = came_from.get(current)
+                if prev is not None and max_angle is not None:
+                    v1 = (current[0] - prev[0], current[1] - prev[1])
+                    v2 = (neighbor[0] - current[0], neighbor[1] - current[1])
+                    angle = angle_between(v1, v2)
+                    if angle > max_angle:
+                        continue
 
                 tentative_g_score = gscore[current] + heuristic(current, neighbor) + abs(elevations[neighbor] - elevations[current])
                 if neighbor in close_set and tentative_g_score >= gscore.get(neighbor, float('inf')):
@@ -112,58 +141,76 @@ def a_star(
                     oheap.put((fscore[neighbor], neighbor))
     return []
 
-def find_optimal_path(
-    point1: List[float],
-    point2: List[float],
-    grid_size: int = 100,
-    max_slope: float = 0.5,  # Example: max rise/run
+import heapq
+
+def dijkstra(
+    elevations,
+    start_idx,
+    goal_idx,
+    max_slope=None,
     forbidden_mask=None,
-    min_elev: float = None,
-    max_elev: float = None
-) -> List[List[float]]:
-    """
-    Finds the optimal path between two points using A* on a DEM grid.
-    Returns a list of [x, y, z] points along the path.
-    """
-    min_x = min(point1[0], point2[0])
-    max_x = max(point1[0], point2[0])
-    min_y = min(point1[1], point2[1])
-    max_y = max(point1[1], point2[1])
-    # Add a small buffer
-    buffer = 10
-    bounds = (min_x - buffer, max_x + buffer, min_y - buffer, max_y + buffer)
+    min_elev=None,
+    max_elev=None,
+    max_step=None,
+    max_angle=None
+):
+    neighbors = [(-1,0),(1,0),(0,-1),(0,1), (-1,-1), (-1,1), (1,-1), (1,1)]
+    grid_shape = elevations.shape
+    visited = set()
+    came_from = {}
+    gscore = {start_idx: 0}
+    heap = [(0, start_idx)]
 
-    xx, yy, elevations = get_elevation_grid(bounds, grid_size=grid_size)
+    while heap:
+        cost, current = heapq.heappop(heap)
+        if current == goal_idx:
+            path = []
+            while current in came_from:
+                path.append(current)
+                current = came_from[current]
+            path.append(start_idx)
+            path.reverse()
+            return path
 
-    # Example forbidden mask: None (no forbidden zones)
-    # To use: forbidden_mask = np.zeros_like(elevations, dtype=bool)
-    # forbidden_mask[10:20, 10:20] = True  # Example: block a square
+        if current in visited:
+            continue
+        visited.add(current)
 
-    # Find closest grid indices to start and end
-    def closest_idx(x, y):
-        ix = (np.abs(xx[0] - x)).argmin()
-        iy = (np.abs(yy[:,0] - y)).argmin()
-        return (iy, ix)
+        for dx, dy in neighbors:
+            neighbor = (current[0] + dx, current[1] + dy)
+            if 0 <= neighbor[0] < grid_shape[0] and 0 <= neighbor[1] < grid_shape[1]:
+                # Constraints (same as in A*)
+                if max_slope is not None:
+                    dz = elevations[neighbor] - elevations[current]
+                    dx_dist = np.linalg.norm(np.array(current) - np.array(neighbor))
+                    slope = abs(dz / dx_dist) if dx_dist != 0 else 0
+                    if slope > max_slope:
+                        continue
+                if forbidden_mask is not None and forbidden_mask[neighbor]:
+                    continue
+                if min_elev is not None and elevations[neighbor] < min_elev:
+                    continue
+                if max_elev is not None and elevations[neighbor] > max_elev:
+                    continue
+                # --- Step constraint ---
+                dx_dist = np.linalg.norm(np.array(current) - np.array(neighbor))
+                if max_step is not None and dx_dist > max_step:
+                    continue
+                # --- Angle constraint ---
+                prev = came_from.get(current)
+                if prev is not None and max_angle is not None:
+                    v1 = (current[0] - prev[0], current[1] - prev[1])
+                    v2 = (neighbor[0] - current[0], neighbor[1] - current[1])
+                    angle = angle_between(v1, v2)
+                    if angle > max_angle:
+                        continue
 
-    start_idx = closest_idx(point1[0], point1[1])
-    goal_idx = closest_idx(point2[0], point2[1])
-
-    path_indices = a_star(
-        elevations,
-        start_idx,
-        goal_idx,
-        max_slope=max_slope,
-        forbidden_mask=forbidden_mask,
-        min_elev=min_elev,
-        max_elev=max_elev
-    )
-    path_points = []
-    for iy, ix in path_indices:
-        x = xx[iy, ix]
-        y = yy[iy, ix]
-        z = elevations[iy, ix]
-        path_points.append([float(x), float(y), float(z)])
-    return path_points
+                tentative_g_score = gscore[current] + np.linalg.norm(np.array(current) - np.array(neighbor)) + abs(elevations[neighbor] - elevations[current])
+                if tentative_g_score < gscore.get(neighbor, float('inf')):
+                    came_from[neighbor] = current
+                    gscore[neighbor] = tentative_g_score
+                    heapq.heappush(heap, (tentative_g_score, neighbor))
+    return []
 
 def greedy_best_first(
     elevations,
@@ -172,7 +219,9 @@ def greedy_best_first(
     max_slope=None,
     forbidden_mask=None,
     min_elev=None,
-    max_elev=None
+    max_elev=None,
+    max_step=None,
+    max_angle=None
 ):
     from queue import PriorityQueue
 
@@ -214,32 +263,77 @@ def greedy_best_first(
                     continue
                 if max_elev is not None and elevations[neighbor] > max_elev:
                     continue
+                # --- Step constraint ---
+                dx_dist = heuristic(current, neighbor)
+                if max_step is not None and dx_dist > max_step:
+                    continue
+                # --- Angle constraint ---
+                prev = came_from.get(current)
+                if prev is not None and max_angle is not None:
+                    v1 = (current[0] - prev[0], current[1] - prev[1])
+                    v2 = (neighbor[0] - current[0], neighbor[1] - current[1])
+                    angle = angle_between(v1, v2)
+                    if angle > max_angle:
+                        continue
 
                 if neighbor not in visited:
                     came_from[neighbor] = current
                     pq.put((heuristic(neighbor, goal_idx), neighbor))
     return []
 
-import heapq
+import numpy as np
+from queue import PriorityQueue
 
-def dijkstra(
+def line_of_sight(elevations, p1, p2, max_slope=None, forbidden_mask=None, min_elev=None, max_elev=None):
+    """
+    Checks if all points between p1 and p2 are traversable, including slope between consecutive points.
+    """
+    x0, y0 = p1
+    x1, y1 = p2
+    x0, y0, x1, y1 = int(x0), int(y0), int(x1), int(y1)
+    points = np.linspace([x0, y0], [x1, y1], num=int(np.hypot(x1-x0, y1-y0))+1)
+    points = np.round(points).astype(int)
+    prev_x, prev_y = points[0]
+    prev_elev = elevations[prev_x, prev_y]
+    for x, y in points[1:]:
+        if forbidden_mask is not None and forbidden_mask[x, y]:
+            return False
+        if min_elev is not None and elevations[x, y] < min_elev:
+            return False
+        if max_elev is not None and elevations[x, y] > max_elev:
+            return False
+        if max_slope is not None:
+            dz = elevations[x, y] - prev_elev
+            dist = np.hypot(x - prev_x, y - prev_y)
+            slope = abs(dz / dist) if dist != 0 else 0
+            if slope > max_slope:
+                return False
+        prev_x, prev_y = x, y
+        prev_elev = elevations[x, y]
+    return True
+
+def theta_star(
     elevations,
     start_idx,
     goal_idx,
     max_slope=None,
     forbidden_mask=None,
     min_elev=None,
-    max_elev=None
+    max_elev=None,
+    max_step=None,
+    max_angle=None
 ):
     neighbors = [(-1,0),(1,0),(0,-1),(0,1), (-1,-1), (-1,1), (1,-1), (1,1)]
     grid_shape = elevations.shape
-    visited = set()
+    close_set = set()
     came_from = {}
     gscore = {start_idx: 0}
-    heap = [(0, start_idx)]
+    fscore = {start_idx: np.linalg.norm(np.array(start_idx) - np.array(goal_idx))}
+    oheap = PriorityQueue()
+    oheap.put((fscore[start_idx], start_idx))
 
-    while heap:
-        cost, current = heapq.heappop(heap)
+    while not oheap.empty():
+        current = oheap.get()[1]
         if current == goal_idx:
             path = []
             while current in came_from:
@@ -249,30 +343,47 @@ def dijkstra(
             path.reverse()
             return path
 
-        if current in visited:
-            continue
-        visited.add(current)
-
+        close_set.add(current)
         for dx, dy in neighbors:
             neighbor = (current[0] + dx, current[1] + dy)
             if 0 <= neighbor[0] < grid_shape[0] and 0 <= neighbor[1] < grid_shape[1]:
-                # Constraints (same as in A*)
-                if max_slope is not None:
-                    dz = elevations[neighbor] - elevations[current]
-                    dx_dist = np.linalg.norm(np.array(current) - np.array(neighbor))
-                    slope = abs(dz / dx_dist) if dx_dist != 0 else 0
-                    if slope > max_slope:
-                        continue
+                # Constraints
                 if forbidden_mask is not None and forbidden_mask[neighbor]:
                     continue
                 if min_elev is not None and elevations[neighbor] < min_elev:
                     continue
                 if max_elev is not None and elevations[neighbor] > max_elev:
                     continue
+                dz = elevations[neighbor] - elevations[current]
+                dx_dist = np.linalg.norm(np.array(current) - np.array(neighbor))
+                if max_slope is not None:
+                    slope = abs(dz / dx_dist) if dx_dist != 0 else 0
+                    if slope > max_slope:
+                        continue
+                if max_step is not None and dx_dist > max_step:
+                    continue
+                prev = came_from.get(current)
+                if prev is not None and max_angle is not None:
+                    v1 = (current[0] - prev[0], current[1] - prev[1])
+                    v2 = (neighbor[0] - current[0], neighbor[1] - current[1])
+                    angle = angle_between(v1, v2)
+                    if angle > max_angle:
+                        continue
 
-                tentative_g_score = gscore[current] + np.linalg.norm(np.array(current) - np.array(neighbor)) + abs(elevations[neighbor] - elevations[current])
-                if tentative_g_score < gscore.get(neighbor, float('inf')):
-                    came_from[neighbor] = current
-                    gscore[neighbor] = tentative_g_score
-                    heapq.heappush(heap, (tentative_g_score, neighbor))
+                # Theta* shortcut
+                parent = came_from.get(current, current)
+                if parent != current and line_of_sight(elevations, parent, neighbor, max_slope, forbidden_mask, min_elev, max_elev):
+                    tentative_g_score = gscore[parent] + np.linalg.norm(np.array(parent) - np.array(neighbor))
+                    if tentative_g_score < gscore.get(neighbor, float('inf')):
+                        came_from[neighbor] = parent
+                        gscore[neighbor] = tentative_g_score
+                        fscore[neighbor] = tentative_g_score + np.linalg.norm(np.array(neighbor) - np.array(goal_idx))
+                        oheap.put((fscore[neighbor], neighbor))
+                else:
+                    tentative_g_score = gscore[current] + dx_dist
+                    if tentative_g_score < gscore.get(neighbor, float('inf')):
+                        came_from[neighbor] = current
+                        gscore[neighbor] = tentative_g_score
+                        fscore[neighbor] = tentative_g_score + np.linalg.norm(np.array(neighbor) - np.array(goal_idx))
+                        oheap.put((fscore[neighbor], neighbor))
     return []

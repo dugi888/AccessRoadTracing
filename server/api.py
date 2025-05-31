@@ -1,10 +1,11 @@
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
+import os
 from typing import List, Optional
 from fastapi.middleware.cors import CORSMiddleware
 from models import PointRequest, ProfileResponse 
 from utils.terrain_profile import get_terrain_profile
-from utils.optimal_path import find_optimal_path, a_star, dijkstra, greedy_best_first, get_elevation_grid, heuristic
+from utils.optimal_path import a_star, dijkstra, greedy_best_first, get_elevation_grid, theta_star
 
 app = FastAPI()
 
@@ -29,21 +30,26 @@ async def create_profile(request: PointRequest):
 @app.post("/optimal-path")
 async def optimal_path(
     request: PointRequest,
-    algorithm: str = Query("astar", enum=["astar", "dijkstra", "greedy"]),
+    algorithm: str = Query("astar", enum=["astar", "dijkstra", "greedy", "theta_star"]),
     max_slope: float = Query(100.0),
     min_elev: Optional[float] = Query(None),
     max_elev: Optional[float] = Query(None),
-    grid_size: int = Query(100)
-):
+    grid_size: int = Query(100),
+    max_step: float = Query(10000.0),
+    max_angle: float = Query(180.0),
+    buffer : int = Query(10)
+
+): 
     if len(request.point1) != 3 or len(request.point2) != 3:
         raise HTTPException(status_code=400, detail="Points must be 3D coordinates")
     try:
+        print(f"Finding optimal path from {request.point1} to {request.point2} using {algorithm} algorithm")
+        print(f"Parameters: max_slope={max_slope}, min_elev={min_elev}, max_elev={max_elev}, grid_size={grid_size}, max_step={max_step}, max_angle={max_angle}")
         # Prepare grid and indices
         min_x = min(request.point1[0], request.point2[0])
         max_x = max(request.point1[0], request.point2[0])
         min_y = min(request.point1[1], request.point2[1])
         max_y = max(request.point1[1], request.point2[1])
-        buffer = 10
         bounds = (min_x - buffer, max_x + buffer, min_y - buffer, max_y + buffer)
         xx, yy, elevations = get_elevation_grid(bounds, grid_size=grid_size)
         def closest_idx(x, y):
@@ -61,7 +67,9 @@ async def optimal_path(
                 max_slope=max_slope,
                 forbidden_mask=forbidden_mask,
                 min_elev=min_elev,
-                max_elev=max_elev
+                max_elev=max_elev,
+                max_step=max_step,
+                max_angle=max_angle,
             )
         elif algorithm == "dijkstra":
             path_indices = dijkstra(
@@ -69,7 +77,9 @@ async def optimal_path(
                 max_slope=max_slope,
                 forbidden_mask=forbidden_mask,
                 min_elev=min_elev,
-                max_elev=max_elev
+                max_elev=max_elev,
+                max_angle=max_angle,
+                max_step=max_step,
             )
         elif algorithm == "greedy":
             path_indices = greedy_best_first(
@@ -77,8 +87,20 @@ async def optimal_path(
                 max_slope=max_slope,
                 forbidden_mask=forbidden_mask,
                 min_elev=min_elev,
-                max_elev=max_elev
+                max_elev=max_elev,
+                max_angle=max_angle,
+                max_step=max_step,
             )
+        elif algorithm == "theta_star":
+            path_indices = theta_star(
+            elevations, start_idx, goal_idx,
+            max_slope=max_slope,
+            forbidden_mask=forbidden_mask,
+            min_elev=min_elev,
+            max_elev=max_elev,
+            max_step=max_step,
+            max_angle=max_angle,
+        )
         else:
             raise HTTPException(status_code=400, detail="Unknown algorithm")
 
@@ -91,6 +113,7 @@ async def optimal_path(
             path_points.append([float(x), float(y), float(z)])
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
     return {"path": path_points}
 
 if __name__ == "__main__":

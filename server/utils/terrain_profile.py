@@ -3,7 +3,7 @@ import json
 import pdal
 import numpy as np
 from typing import List
-from models import ProfileResponse  # Or move ProfileResponse to a models.py to avoid circular import
+from models import ProfileResponse  
 
 EPT_PATH = os.path.join("../client/public/pointclouds/mountain/ept.json")
 

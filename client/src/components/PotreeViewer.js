@@ -99,7 +99,7 @@ useEffect(() => {
         };
       });
 
-      window.Potree.loadPointCloud('/pointclouds/mountain/ept.json', 'Terrain', e => {
+      window.Potree.loadPointCloud('/pointclouds/markovec/ept.json', 'Terrain', e => {
         const pointcloud = e.pointcloud;
         viewer.scene.addPointCloud(pointcloud);
         viewer.setBackground("white"); // Potree's built-in method

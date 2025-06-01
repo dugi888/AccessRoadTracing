@@ -4,7 +4,7 @@ import pdal
 import numpy as np
 from typing import Tuple
 
-EPT_PATH = os.path.join("../client/public/pointclouds/mountain/ept.json")
+EPT_PATH = os.path.join("../client/public/pointclouds/markovec/ept.json")
 
 def get_elevation_grid(bounds: Tuple[float, float, float, float], grid_size: int = 100):
     """

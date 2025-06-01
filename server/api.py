@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
-import os
+import time
 from typing import List, Optional
 from fastapi.middleware.cors import CORSMiddleware
 from models import PointRequest, ProfileResponse 
@@ -43,6 +43,8 @@ async def optimal_path(
     buffer : int = Query(10)
 
 ): 
+    start_time = time.time()  # Start timer
+
     if len(request.point1) != 3 or len(request.point2) != 3:
         raise HTTPException(status_code=400, detail="Points must be 3D coordinates")
     try:
@@ -131,13 +133,8 @@ async def optimal_path(
     
     length = path_length(path_points)
     slope_stats = average_slope(path_points)
-    print(f"Path length: {length} meters")
-    print(
-        f"Average slope: {slope_stats['avg']}, Min slope: {slope_stats['min']}, Max slope: {slope_stats['max']}"
-    )
-    print(
-        f"Local average slope: {slope_stats['local_avg']}, Local min slope: {slope_stats['local_min']}, Local max slope: {slope_stats['local_max']}"
-    )
+    elapsed = time.time() - start_time  # End timer
+    print(f"Request took {elapsed:.3f} seconds")
     return {
         "path": path_points,
         "length": length,

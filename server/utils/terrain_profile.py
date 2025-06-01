@@ -5,7 +5,7 @@ import numpy as np
 from typing import List
 from models import ProfileResponse  
 
-EPT_PATH = os.path.join("../client/public/pointclouds/mountain/ept.json")
+EPT_PATH = os.path.join("../client/public/pointclouds/markovec/ept.json")
 
 def get_terrain_profile(point1: List[float], point2: List[float], num_points: int = 100) -> ProfileResponse:
     line = np.linspace(point1[:2], point2[:2], num_points)

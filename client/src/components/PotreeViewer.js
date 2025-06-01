@@ -215,7 +215,10 @@ const sendOptimalPathRequest = async (activeParams) => {
         average_slope={optimalPathResult?.average_slope}
         min_slope={optimalPathResult?.min_slope}
         max_slope={optimalPathResult?.max_slope}
-      />   
+        local_average_slope={optimalPathResult?.local_average_slope}
+        local_min_slope={optimalPathResult?.local_min_slope}
+        local_max_slope={optimalPathResult?.local_max_slope}
+      />
  </div>
   );
 };

@@ -117,16 +117,36 @@ async def optimal_path(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+    if not path_points:
+        return {
+            "path": [],
+            "length": 0,
+            "average_slope": 0,
+            "min_slope": 0,
+            "max_slope": 0,
+            "local_average_slope": 0,
+            "local_min_slope": 0,
+            "local_max_slope": 0
+        }
+    
     length = path_length(path_points)
-    avg_slope, min_slope, max_slope = average_slope(path_points)
+    slope_stats = average_slope(path_points)
     print(f"Path length: {length} meters")
-    print(f"Average slope: {avg_slope}, Min slope: {min_slope}, Max slope: {max_slope}")
+    print(
+        f"Average slope: {slope_stats['avg']}, Min slope: {slope_stats['min']}, Max slope: {slope_stats['max']}"
+    )
+    print(
+        f"Local average slope: {slope_stats['local_avg']}, Local min slope: {slope_stats['local_min']}, Local max slope: {slope_stats['local_max']}"
+    )
     return {
         "path": path_points,
         "length": length,
-        "average_slope": avg_slope,
-        "min_slope": min_slope,
-        "max_slope": max_slope
+        "average_slope": slope_stats["avg"],
+        "min_slope": slope_stats["min"],
+        "max_slope": slope_stats["max"],
+        "local_average_slope": slope_stats["local_avg"],
+        "local_min_slope": slope_stats["local_min"],
+        "local_max_slope": slope_stats["local_max"]
     }
 
 if __name__ == "__main__":

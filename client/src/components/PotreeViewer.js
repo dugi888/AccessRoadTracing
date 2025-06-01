@@ -209,8 +209,14 @@ const sendOptimalPathRequest = async (activeParams) => {
         disabled={selectedPoints.length < 2}
       />
       <ProfileChart profile={profileResult} />
-      <OptimalPathChart path={optimalPathResult?.path} />
-    </div>
+      <OptimalPathChart
+        path={optimalPathResult?.path}
+        length={optimalPathResult?.length}
+        average_slope={optimalPathResult?.average_slope}
+        min_slope={optimalPathResult?.min_slope}
+        max_slope={optimalPathResult?.max_slope}
+      />   
+ </div>
   );
 };
 

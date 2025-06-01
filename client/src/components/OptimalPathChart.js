@@ -3,7 +3,7 @@ import { Chart, LineElement, PointElement, LinearScale, CategoryScale, Title, To
 
 Chart.register(LineElement, PointElement, LinearScale, CategoryScale, Title, Tooltip, Legend);
 
-const OptimalPathChart = ({ path }) => {
+const OptimalPathChart = ({ path, length, average_slope, min_slope, max_slope }) => {
   if (!path || !Array.isArray(path) || path.length === 0) return null;
 
   // Split path into X, Y, Z arrays for plotting
@@ -11,6 +11,11 @@ const OptimalPathChart = ({ path }) => {
   const ys = path.map(p => p[1]);
   const zs = path.map(p => p[2]);
 
+  console.log('length:', length);
+  console.log('average_slope:', average_slope);
+  console.log('min_slope:', min_slope);
+  console.log('max_slope:', max_slope);
+  
   const data = {
     labels: xs.map((_, i) => i), // Use index as label
     datasets: [
@@ -47,15 +52,24 @@ const OptimalPathChart = ({ path }) => {
         padding: '20px',
         zIndex: 2000,
         maxWidth: 900,
-        maxHeight: 600,
+        maxHeight: 900,
         width: 800,
-        height: 500,
+        height: 600,
         overflow: 'auto',
         border: '1px solid #ccc',
         boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
       }}
     >
       <Line data={data} options={options} />
+      <div style={{ marginTop: 20, fontSize: 16 }}>
+        <b>Path Statistics:</b>
+        <ul style={{ listStyle: 'none', padding: 0 }}>
+          <li><b>Length:</b> {length ? length.toFixed(2) : '/'} m</li>
+          <li><b>Average slope:</b> {average_slope ? average_slope.toFixed(3) : '/'} </li>
+          <li><b>Min slope:</b> {min_slope ? min_slope.toFixed(3) : '0'} </li>
+          <li><b>Max slope:</b> {max_slope ? max_slope.toFixed(3) : '/'} </li>
+        </ul>
+      </div>
     </div>
   );
 };

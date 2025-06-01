@@ -284,9 +284,20 @@ def greedy_best_first(
 import numpy as np
 from queue import PriorityQueue
 
-def line_of_sight(elevations, p1, p2, max_slope=None, forbidden_mask=None, min_elev=None, max_elev=None):
+def line_of_sight(
+    elevations,
+    p1,
+    p2,
+    max_slope=None,
+    forbidden_mask=None,
+    min_elev=None,
+    max_elev=None,
+    max_step=None,
+    max_angle=None,
+    prev=None  # previous point for angle constraint
+):
     """
-    Checks if all points between p1 and p2 are traversable, including slope between consecutive points.
+    Checks if all points between p1 and p2 are traversable, including all constraints.
     """
     x0, y0 = p1
     x1, y1 = p2
@@ -295,21 +306,39 @@ def line_of_sight(elevations, p1, p2, max_slope=None, forbidden_mask=None, min_e
     points = np.round(points).astype(int)
     prev_x, prev_y = points[0]
     prev_elev = elevations[prev_x, prev_y]
-    for x, y in points[1:]:
+
+    for idx, (x, y) in enumerate(points[1:], start=1):
+        # Forbidden zone
         if forbidden_mask is not None and forbidden_mask[x, y]:
             return False
-        if min_elev is not None and elevations[x, y] < min_elev:
+        # Elevation constraints
+        elev = elevations[x, y]
+        if min_elev is not None and elev < min_elev:
             return False
-        if max_elev is not None and elevations[x, y] > max_elev:
+        if max_elev is not None and elev > max_elev:
             return False
+        # Slope constraint
         if max_slope is not None:
-            dz = elevations[x, y] - prev_elev
+            dz = elev - prev_elev
             dist = np.hypot(x - prev_x, y - prev_y)
             slope = abs(dz / dist) if dist != 0 else 0
             if slope > max_slope:
                 return False
+        # Step constraint
+        if max_step is not None:
+            dist = np.hypot(x - prev_x, y - prev_y)
+            if dist > max_step:
+                return False
+        # Angle constraint
+        if max_angle is not None and prev is not None and idx == 1:
+            v1 = (prev_x - prev[0], prev_y - prev[1])
+            v2 = (x - prev_x, y - prev_y)
+            angle = angle_between(v1, v2)
+            if angle > max_angle:
+                return False
+
         prev_x, prev_y = x, y
-        prev_elev = elevations[x, y]
+        prev_elev = elev
     return True
 
 def theta_star(
@@ -372,7 +401,17 @@ def theta_star(
 
                 # Theta* shortcut
                 parent = came_from.get(current, current)
-                if parent != current and line_of_sight(elevations, parent, neighbor, max_slope, forbidden_mask, min_elev, max_elev):
+                prev_of_parent = came_from.get(parent) if parent != current else None
+                if parent != current and line_of_sight(
+                    elevations, parent, neighbor,
+                    max_slope=max_slope,
+                    forbidden_mask=forbidden_mask,
+                    min_elev=min_elev,
+                    max_elev=max_elev,
+                    max_step=max_step,
+                    max_angle=max_angle,
+                    prev=prev_of_parent
+                ):                    
                     tentative_g_score = gscore[parent] + np.linalg.norm(np.array(parent) - np.array(neighbor))
                     if tentative_g_score < gscore.get(neighbor, float('inf')):
                         came_from[neighbor] = parent

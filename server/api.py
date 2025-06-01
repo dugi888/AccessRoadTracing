@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from models import PointRequest, ProfileResponse 
 from utils.terrain_profile import get_terrain_profile
 from utils.optimal_path import a_star, dijkstra, greedy_best_first, get_elevation_grid, theta_star
+from utils.functions import path_length, average_slope
 
 app = FastAPI()
 
@@ -16,6 +17,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
 
 @app.post("/profile", response_model=ProfileResponse)
 async def create_profile(request: PointRequest):
@@ -114,7 +117,17 @@ async def optimal_path(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-    return {"path": path_points}
+    length = path_length(path_points)
+    avg_slope, min_slope, max_slope = average_slope(path_points)
+    print(f"Path length: {length} meters")
+    print(f"Average slope: {avg_slope}, Min slope: {min_slope}, Max slope: {max_slope}")
+    return {
+        "path": path_points,
+        "length": length,
+        "average_slope": avg_slope,
+        "min_slope": min_slope,
+        "max_slope": max_slope
+    }
 
 if __name__ == "__main__":
     import uvicorn
